@@ -1864,25 +1864,30 @@
     <?!= include('login_ui'); ?>
 
     <!-- ****************POPUP OVERLAY **********************************-->
-    <div id="popupOverlay" class="popup-overlay">
-        <div class="popup-box">
-            <p>Jika belum memasang aplikasi versi android (APK), silakan pasang aplikasi ini di HP</p>
-            <hr>
-            <h5>🔹 Android (Chrome)</h5>
-            1. Tap "<b>⋮</b>" (kanan atas)<br>
-            2. Pilih <b>Tambahkan ke layar utama</b><br><br>
-
-            <h5>🔹 iPhone (Safari)</h5>
-            1. Tap tombol <b>Share</b><br>
-            2. Pilih <b>Add to Home Screen</b><br>
-            <hr>
-            <br>
-            <label class="checkbox">
-                <input type="checkbox" id="dontShowAgain"> Jangan tampilkan lagi</label>
-            <br><br>
-
-            <button onclick="closePopup()">Lanjut</button>
+    <div id="login-overlay">
+      <div class="login-card">
+        <h2 id="login-title">AKSES TERBATAS</h2>
+        <p id="login-desc">Masukkan PIN untuk masuk ke silsilah keluarga Trah Iman Ulomo.</p>
+        
+        <input type="password" id="pin_input" placeholder="----" inputmode="numeric" maxlength="4" autocomplete="off" oninput="this.value = this.value.replace(/[^0-9]/g, '');">
+        
+        <div id="options-container" style="margin-top: 10px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 8px;">
+          
+          <div id="remember-container" style="display: flex; align-items: center; gap: 8px;">
+            <input type="checkbox" id="remember_pin" style="width: auto; cursor: pointer;" checked>
+            <label for="remember_pin" style="font-size: 13px; color: #64748b; cursor: pointer; user-select: none;">Simpan PIN</label>
+          </div>
+    
+          <div id="fullscreen-container" style="display: flex; align-items: center; gap: 8px;">
+            <input type="checkbox" id="enable_fullscreen" style="width: auto; cursor: pointer;" checked>
+            <label for="enable_fullscreen" style="font-size: 13px; color: #64748b; cursor: pointer; user-select: none;">Mode Fullscreen</label>
+          </div>
+    
         </div>
+    
+        <button id="btn-login">Buka Akses</button>
+        <div id="error-msg"></div>
+      </div>
     </div>
 
     <script>
@@ -5278,5 +5283,6 @@
 </body>
 
 </html>
+
 
 
