@@ -1893,22 +1893,23 @@
 
     <!---------------------- Login baru ----------------------------------------->
     <div id="login-overlay">
-        <div class="login-card">
-            <h2>Akses Keluarga</h2>
-            <p>Silakan masukkan PIN untuk membuka silsilah Trah Kyai Iman Ulomo</p>
-            <input type="password" id="pin-field" placeholder="****" maxlength="10"
-                style="width:100%; text-align:center;">
-            <div id="error-msg" style="color:red; font-size:12px; margin-top:10px;"></div>
-            <div style="margin:20px 0;">
-                <input type="checkbox" id="remember-pin"> <label for="remember-pin">Ingat saya</label>
-            </div>
-            <button id="login-btn" onclick="checkLoginLuar()"
-                style="width:100%; padding:10px; background:#2563eb; color:white; border:none; border-radius:8px;">Buka
-                Akses</button>
+      <div class="login-card">
+        <div class="login-header">
+          <i class="fas fa-users-cog"></i>
+          <h2>Akses Keluarga</h2>
+          <p>Silakan masukkan PIN untuk membuka silsilah Trah Kyai Iman Ulomo</p>
         </div>
-    </div>
-
-    <div id="app-container" style="display: none;">
+        <div class="input-group-login">
+          <i class="fas fa-key input-icon"></i>
+          <input type="password" id="pin-field" placeholder="Masukkan PIN" maxlength="10">
+        </div>
+        <div id="error-msg" class="error-text"></div>
+        <div class="remember-me">
+          <input type="checkbox" id="remember-pin">
+          <label for="remember-pin">Ingat PIN</label>
+        </div>
+        <button id="login-btn" onclick="executeLogin()">MASUK</button>
+      </div>
     </div>
 
 
@@ -2499,38 +2500,55 @@
         };
 
         // FUNGSI LOGIN KONSISTEN
-        async function executeLogin(pinOtomatis) {
-            const pin = pinOtomatis || document.getElementById('pin-field').value;
-            const btn = document.getElementById('login-btn');
-            const errorMsg = document.getElementById('error-msg');
+async function checkLogin(pinOtomatis) {
+    const pinField = document.getElementById('pin-field');
+    const pin = pinOtomatis || pinField.value;
+    const btn = document.getElementById('login-btn');
+    const errorMsg = document.getElementById('error-msg');
+    const rememberCheckbox = document.getElementById('remember-pin');
 
-            if (!pin) { errorMsg.innerText = "PIN harus diisi!"; return; }
-            btn.disabled = true; btn.innerText = "Memeriksa...";
+    if (!pin) { 
+        errorMsg.innerText = "PIN harus diisi!"; 
+        return; 
+    }
 
-            try {
-                const response = await fetch(SCRIPT_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({ action: "checkLogin", data: { pin: pin } })
-                });
-                const res = await response.json();
+    btn.disabled = true;
+    btn.innerText = "MEMERIKSA...";
 
-                if (res.status === "success") {
-                    if (!pinOtomatis && document.getElementById('remember-pin').checked) {
-                        localStorage.setItem('family_pin_only', pin);
-                    }
-                    document.getElementById('login-overlay').classList.add('fade-out');
-                    setTimeout(() => { document.getElementById('login-overlay').style.display = 'none'; }, 500);
+    try {
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({ 
+                action: "checkLogin", 
+                data: { pin: pin } 
+            })
+        });
+        const res = await response.json();
 
-                    // Panggil fungsi muat data silsilah
-                    loadDataExternal();
-                } else {
-                    btn.disabled = false; btn.innerText = "Buka Akses";
-                    errorMsg.innerText = "PIN Salah!";
-                }
-            } catch (e) {
-                btn.disabled = false; errorMsg.innerText = "Koneksi ke server gagal!";
+        if (res.status === "success") {
+            if (!pinOtomatis && rememberCheckbox.checked) {
+                localStorage.setItem('family_pin_only', pin);
             }
+            
+            // Animasi tutup overlay
+            document.getElementById('login-overlay').classList.add('fade-out');
+            setTimeout(() => {
+                document.getElementById('login-overlay').style.display = 'none';
+                // MEMANGGIL REFRESH ASLI ANDA
+                refresh(); 
+            }, 500);
+        } else {
+            btn.disabled = false;
+            btn.innerText = "MASUK";
+            errorMsg.innerText = "PIN Salah!";
+            pinField.value = "";
         }
+    } catch (e) {
+        btn.disabled = false;
+        btn.innerText = "MASUK";
+        errorMsg.innerText = "Gagal terhubung ke server!";
+    }
+}
 
         // FUNGSI AMBIL DATA KONSISTEN
         async function loadDataExternal() {
@@ -5200,3 +5218,4 @@
 </body>
 
 </html>
+
