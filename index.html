@@ -2400,6 +2400,8 @@
         let genTerakhir = 2; // Variabel pengingat posisi generasi
         let currentViewMode = 'tree'; // Pilihan: 'tree' atau 'focus'
         let pathFokus = [];           // Untuk melacak naviga
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby8VfOQtuhH5dlxjk0QKoWQr3sPpHGmKN_C1yklyoh_e86AERhWpNom_UppmT3U2N9Lvw/exec"; // Ganti dengan URL Deploy GAS Anda
+        let localAppData = []; 
 
         // Fungsi utama untuk memuat data
         async function refresh() {
@@ -2485,8 +2487,6 @@
 
 
         // **********************LOGIKA BARU UNTUK KOMUNIKASI LUAR (API)
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby8VfOQtuhH5dlxjk0QKoWQr3sPpHGmKN_C1yklyoh_e86AERhWpNom_UppmT3U2N9Lvw/exec"; // Ganti dengan URL Deploy GAS Anda
-        let localAppData = []; 
 
         // MENGGABUNGKAN window.onload
         window.onload = function () {
@@ -5205,4 +5205,3 @@
 </body>
 
 </html>
-
