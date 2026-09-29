@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Gas Flow & Pressure Control - Multi Plant Client</title>
     <style>
         /* ==========================================
@@ -14,34 +14,74 @@
             margin: 0;
             padding: 0;
             user-select: none;
-            font-family: Arial, Helvetica, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
         }
 
         body {
             background-color: #1E222A;
             color: #FFFFFF;
-            height: 100vh;
+            min-height: 100vh;
             display: flex;
             flex-direction: column;
-            overflow: hidden;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+
+        /* MOBILE TAB BAR */
+        .mobile-tab-bar {
+            display: none;
+            background-color: #15181E;
+            border-bottom: 2px solid #3A404D;
+            padding: 6px;
+            gap: 6px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 10px 4px;
+            background-color: #2B303C;
+            color: #A0AAB0;
+            border: 1px solid #3A404D;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s ease;
+            touch-action: manipulation;
+        }
+
+        .tab-btn.active {
+            background-color: #00E676;
+            color: #000;
+            border-color: #00E676;
+            box-shadow: 0 0 8px rgba(0, 230, 118, 0.4);
         }
 
         /* DCS WORKSPACE MAIN CONTAINER */
         #dcs-workspace {
             display: flex;
             width: 100%;
-            height: 100vh;
+            flex: 1;
             padding: 10px;
             gap: 10px;
+            box-sizing: border-box;
+            min-height: 0;
         }
 
         /* Yokogawa Faceplate Border Frame */
         .faceplate-border {
             background-color: #808080;
-            padding: 2px;
+            padding: 3px;
             border: 2px outset #B0B0B0;
-            width: 155px;
+            width: 180px;
             flex-shrink: 0;
+            border-radius: 4px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
         }
 
         .faceplate {
@@ -49,14 +89,15 @@
             height: 100%;
             display: flex;
             flex-direction: column;
-            padding: 3px;
+            padding: 4px;
             color: #000;
+            border-radius: 2px;
         }
 
         .fp-header {
             background-color: #C0C0C0;
             border: 2px outset #FFF;
-            padding: 4px;
+            padding: 6px 4px;
             font-family: 'Courier New', Courier, monospace;
             font-weight: bold;
             font-size: 13px;
@@ -67,24 +108,25 @@
         .status-box {
             background-color: #000000;
             border: 2px inset #808080;
-            height: 52px;
-            margin: 3px 0;
+            height: 54px;
+            margin: 4px 0;
             position: relative;
         }
 
         .ind-sq {
             position: absolute;
-            top: 5px;
+            top: 6px;
             left: 35px;
-            width: 16px;
-            height: 12px;
+            width: 18px;
+            height: 14px;
             background-color: #00FF00;
+            border-radius: 2px;
         }
 
         .lbl-mode-text {
             position: absolute;
-            top: 18px;
-            left: 5px;
+            top: 20px;
+            left: 6px;
             font-family: 'Courier New', Courier, monospace;
             font-size: 11px;
             font-weight: bold;
@@ -94,16 +136,18 @@
 
         .btn-ack {
             position: absolute;
-            top: 12px;
+            top: 10px;
             right: 8px;
-            width: 38px;
-            height: 25px;
+            width: 44px;
+            height: 32px;
             background-color: #4A5162;
             color: #FFF;
             border: 1px solid #000;
-            font-size: 10px;
+            font-size: 11px;
             font-weight: bold;
             cursor: pointer;
+            border-radius: 3px;
+            touch-action: manipulation;
         }
 
         .btn-mode {
@@ -112,31 +156,38 @@
             color: #FFF;
             border: 1px solid #000;
             font-weight: bold;
-            font-size: 11px;
-            padding: 3px;
+            font-size: 12px;
+            padding: 8px 4px;
             cursor: pointer;
-            margin-bottom: 3px;
+            margin-bottom: 4px;
+            border-radius: 3px;
+            touch-action: manipulation;
         }
 
         .readout-box {
             background-color: #000;
             border: 2px inset #808080;
-            margin: 1px 0;
+            margin: 2px 0;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 1px 4px;
+            padding: 2px 6px;
             font-family: 'Courier New', Courier, monospace;
-            height: 22px;
+            min-height: 28px;
+            border-radius: 2px;
         }
 
         .readout-box.clickable {
             cursor: pointer;
         }
 
+        .readout-box.clickable:active {
+            background-color: #1a1a1a;
+        }
+
         .readout-title {
             color: #FFF;
-            font-size: 12px;
+            font-size: 13px;
             font-weight: bold;
         }
 
@@ -147,15 +198,23 @@
 
         .readout-val {
             color: #00FFFF;
-            font-size: 13px;
+            font-size: 14px;
             font-weight: bold;
+        }
+
+        #faceplateCanvasContainer {
+            width: 100%;
+            margin-top: 4px;
+            display: flex;
+            justify-content: center;
         }
 
         #faceplateCanvas {
             background-color: #C0C0C0;
-            margin-top: 2px;
             cursor: default;
             width: 100%;
+            max-width: 200px;
+            height: auto;
         }
 
         /* Right Panel Container */
@@ -163,27 +222,59 @@
             flex: 1;
             display: flex;
             flex-direction: column;
-            gap: 5px;
+            gap: 8px;
+            min-width: 0;
+            min-height: 0;
         }
 
         .trend-frame {
             flex: 1;
+            min-height: 320px;
             background-color: #2B303C;
             border: 2px inset #121417;
             display: flex;
             flex-direction: column;
             position: relative;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        /* Canvas Wrapper untuk mencegah Infinite Loop Resize di Mobile */
+        .trend-canvas-wrap {
+            flex: 1;
+            position: relative;
+            width: 100%;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        #trendCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
         }
 
         .trend-ctrl-bar {
             background-color: #1E222A;
-            padding: 4px 8px;
+            padding: 8px;
             display: flex;
+            flex-wrap: wrap;
             align-items: center;
-            gap: 12px;
+            gap: 8px 12px;
             font-size: 11px;
             color: #00E676;
             font-weight: bold;
+            border-top: 1px solid #3A404D;
+            flex-shrink: 0;
+        }
+
+        .trend-ctrl-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .trend-ctrl-bar select,
@@ -192,18 +283,22 @@
             color: #FFF;
             border: 1px solid #3A404D;
             font-family: 'Consolas', monospace;
-            font-size: 11px;
-            padding: 2px 4px;
+            font-size: 12px;
+            padding: 4px 6px;
+            border-radius: 3px;
         }
 
         /* Instructor Console Panel */
         .inst-frame {
             background-color: #2B303C;
             border: 2px solid #3A404D;
-            padding: 6px 12px;
+            padding: 8px 12px;
             display: flex;
-            gap: 20px;
+            flex-wrap: wrap;
+            gap: 12px 20px;
             align-items: center;
+            border-radius: 4px;
+            flex-shrink: 0;
         }
 
         .inst-sec {
@@ -211,6 +306,16 @@
             align-items: center;
             gap: 8px;
             font-size: 11px;
+            flex-wrap: wrap;
+        }
+
+        .inst-sec input[type="text"] {
+            background-color: #121417;
+            color: #FFF;
+            border: 1px solid #3A404D;
+            padding: 5px 8px;
+            font-size: 12px;
+            border-radius: 3px;
         }
 
         .inst-sec-title {
@@ -219,7 +324,7 @@
         }
 
         .status-badge {
-            padding: 3px 8px;
+            padding: 4px 8px;
             border-radius: 3px;
             font-weight: bold;
             font-size: 11px;
@@ -245,43 +350,54 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.6);
+            background: rgba(0, 0, 0, 0.75);
             z-index: 1000;
             justify-content: center;
             align-items: center;
+            padding: 10px;
         }
 
         .modal-body {
             background-color: #2B303C;
             border: 2px solid #00E676;
-            padding: 15px;
-            min-width: 340px;
-            box-shadow: 0 0 10px #000;
+            padding: 16px;
+            width: 100%;
+            max-width: 420px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.8);
+            border-radius: 6px;
         }
 
         .modal-title {
             color: #00E676;
-            font-size: 13px;
+            font-size: 14px;
             font-weight: bold;
-            margin-bottom: 12px;
+            margin-bottom: 14px;
+            border-bottom: 1px solid #3A404D;
+            padding-bottom: 6px;
         }
 
         .modal-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 8px;
+            gap: 10px;
             align-items: center;
             font-size: 12px;
-            margin-bottom: 15px;
+            margin-bottom: 16px;
         }
 
         .modal-grid input[type="text"],
+        .modal-grid input[type="number"],
         .modal-grid select {
             background: #121417;
             color: #FFF;
             border: 1px solid #3A404D;
-            padding: 3px;
+            padding: 6px;
             font-family: 'Consolas', monospace;
+            font-size: 12px;
+            border-radius: 3px;
+            width: 100%;
         }
 
         .modal-grid input:disabled {
@@ -293,15 +409,18 @@
         .modal-btn-bar {
             display: flex;
             justify-content: flex-end;
-            gap: 8px;
+            gap: 10px;
+            margin-top: 10px;
         }
 
         .modal-btn {
-            padding: 4px 12px;
+            padding: 8px 16px;
             font-weight: bold;
-            font-size: 11px;
+            font-size: 12px;
             cursor: pointer;
             border: none;
+            border-radius: 4px;
+            touch-action: manipulation;
         }
 
         .btn-apply {
@@ -310,17 +429,68 @@
         }
 
         .btn-cancel {
-            background-color: #808080;
+            background-color: #606060;
             color: #FFF;
+        }
+
+        @media (max-width: 768px) {
+            .mobile-tab-bar {
+                display: flex;
+            }
+
+            #dcs-workspace {
+                flex-direction: column;
+                padding: 6px;
+                gap: 8px;
+            }
+
+            .faceplate-border {
+                width: 100%;
+                max-width: 320px;
+                margin: 0 auto;
+            }
+
+            .right-container {
+                width: 100%;
+            }
+
+            .trend-frame {
+                min-height: 300px;
+            }
+
+            .modal-grid {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+
+            .tab-content-hidden {
+                display: none !important;
+            }
+
+            .inst-frame {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .inst-sec {
+                justify-content: space-between;
+            }
         }
     </style>
 </head>
 
 <body>
+    <!-- MOBILE TAB BAR -->
+    <div class="mobile-tab-bar" id="mobileTabBar">
+        <button class="tab-btn active" id="tabBtnController" onclick="switchMobileTab('controller')">🎛️ Faceplate</button>
+        <button class="tab-btn" id="tabBtnTrend" onclick="switchMobileTab('trend')">📈 Trend Chart</button>
+        <button class="tab-btn" id="tabBtnServer" onclick="switchMobileTab('server')">⚙️ Server & Config</button>
+    </div>
+
     <!-- MAIN DCS WORKSPACE -->
     <div id="dcs-workspace">
         <!-- YOKOGAWA FACEPLATE -->
-        <div class="faceplate-border">
+        <div class="faceplate-border" id="secFaceplate">
             <div class="faceplate">
                 <div class="fp-header" id="fpPlantTitle">PID #1<br>Controller</div>
 
@@ -359,53 +529,65 @@
                 </div>
 
                 <!-- GRAPHICAL FACEPLATE CANVAS -->
-                <canvas id="faceplateCanvas" width="200" height="295"></canvas>
+                <div id="faceplateCanvasContainer">
+                    <canvas id="faceplateCanvas" width="200" height="295"></canvas>
+                </div>
             </div>
         </div>
 
         <!-- RIGHT CONTAINER: TREND CHART & INSTRUCTOR PANEL -->
         <div class="right-container">
             <!-- TREND CHART PANEL -->
-            <div class="trend-frame">
-                <canvas id="trendCanvas" style="flex:1; width:100%; height:100%;"></canvas>
+            <div class="trend-frame" id="secTrend">
+                <div class="trend-canvas-wrap" id="trendCanvasWrap">
+                    <canvas id="trendCanvas"></canvas>
+                </div>
                 <div class="trend-ctrl-bar">
-                    <span>Pilih Plant Target:</span>
-                    <select id="cbPlantSelect" onchange="changeActivePlant(this.value)">
-                        <option value="0">Plant #1</option>
-                        <option value="1">Plant #2</option>
-                        <option value="2">Plant #3</option>
-                        <option value="3">Plant #4</option>
-                        <option value="4">Plant #5</option>
-                    </select>
+                    <div class="trend-ctrl-group">
+                        <span>Plant Target:</span>
+                        <select id="cbPlantSelect" onchange="changeActivePlant(this.value)">
+                            <option value="0">Plant #1</option>
+                            <option value="1">Plant #2</option>
+                            <option value="2">Plant #3</option>
+                            <option value="3">Plant #4</option>
+                            <option value="4">Plant #5</option>
+                        </select>
+                    </div>
 
-                    <span>Span Trend:</span>
-                    <input type="number" id="txtTrendSpan" value="100" min="5" max="3600" style="width: 55px;" onchange="changeTrendSpan(this.value)">
-                    <span>s</span>
+                    <div class="trend-ctrl-group">
+                        <span>Span:</span>
+                        <input type="number" id="txtTrendSpan" value="100" min="5" max="3600" style="width: 60px;" onchange="changeTrendSpan(this.value)">
+                        <span>s</span>
+                    </div>
 
-                    <span>Refresh Rate:</span>
-                    <select id="cbTrendRefresh" onchange="changeTrendRefresh(this.value)">
-                        <option value="100" selected>100 ms</option>
-                        <option value="500">500 ms</option>
-                        <option value="1000">1 s</option>
-                    </select>
+                    <div class="trend-ctrl-group">
+                        <span>Refresh:</span>
+                        <select id="cbTrendRefresh" onchange="changeTrendRefresh(this.value)">
+                            <option value="100" selected>100 ms</option>
+                            <option value="500">500 ms</option>
+                            <option value="1000">1 s</option>
+                        </select>
+                    </div>
 
-                    <span>Nilai IAE:</span>
-                    <span id="txtIaeVal" style="color: #FF9800; font-family: 'Consolas', monospace;">0.00</span>
-                    <button class="btn-apply" onclick="resetIAE()" style="padding: 2px 6px; font-size: 10px;">Reset IAE</button>
+                    <div class="trend-ctrl-group">
+                        <span>Nilai IAE:</span>
+                        <span id="txtIaeVal" style="color: #FF9800; font-family: 'Consolas', monospace; font-size: 13px;">0.00</span>
+                        <button class="btn-apply" onclick="resetIAE()" style="padding: 3px 8px; font-size: 11px;">Reset</button>
+                    </div>
                 </div>
             </div>
 
             <!-- INSTRUCTOR CONSOLE / SERVER CONNECTION STATUS -->
-            <div class="inst-frame">
+            <div class="inst-frame" id="secServer">
                 <div class="inst-sec">
                     <span class="inst-sec-title">Server IP:</span>
-                    <input type="text" id="txtServerIp" value="127.0.0.1" style="width: 100px;">
+                    <input type="text" id="txtServerIp" value="127.0.0.1" style="width: 120px;">
                     <button class="btn-apply" onclick="reconnectServer()"
-                        style="padding: 2px 8px; font-size: 11px;">Connect</button>
+                        style="padding: 4px 10px; font-size: 11px;">Connect</button>
                 </div>
 
                 <div class="inst-sec">
-                    <span class="inst-sec-title">Status Koneksi Plant Server:</span>
+                    <span class="inst-sec-title">Status Server:</span>
                     <span id="netStatusBadge" class="status-badge status-disconnected">TERPUTUS</span>
                 </div>
             </div>
@@ -418,8 +600,8 @@
         <div class="modal-body">
             <div id="modalTitle" class="modal-title">Config Title</div>
             <div id="modalContent" class="modal-grid"></div>
-            <div class="modal-btn-bar">
-                <button class="modal-btn btn-apply" onclick="submitModal()">Apply / Save</button>
+            <div class="modal-btn-bar" id="modalBtnBar">
+                <button class="modal-btn btn-apply" id="btnModalApply" onclick="submitModal()">Apply / Save</button>
                 <button class="modal-btn btn-cancel" onclick="closeModal()">Cancel</button>
             </div>
         </div>
@@ -460,7 +642,8 @@
             blinkState: false,
 
             ws: null,
-            wsUrl: "ws://127.0.0.1:8765"
+            wsUrl: "ws://127.0.0.1:8765",
+            currentTab: 'controller'
         };
 
         function pctToEu(pct) { return state.eu_min + (pct / 100.0) * (state.eu_max - state.eu_min); }
@@ -468,6 +651,59 @@
             let span = state.eu_max - state.eu_min;
             return span === 0 ? 0.0 : ((eu - state.eu_min) / span) * 100.0;
         }
+
+        function switchMobileTab(tabName) {
+            state.currentTab = tabName;
+            const secFaceplate = document.getElementById("secFaceplate");
+            const secTrend = document.getElementById("secTrend");
+            const secServer = document.getElementById("secServer");
+
+            const btnController = document.getElementById("tabBtnController");
+            const btnTrend = document.getElementById("tabBtnTrend");
+            const btnServer = document.getElementById("tabBtnServer");
+
+            btnController.classList.remove("active");
+            btnTrend.classList.remove("active");
+            btnServer.classList.remove("active");
+
+            if (window.innerWidth <= 768) {
+                secFaceplate.classList.add("tab-content-hidden");
+                secTrend.classList.add("tab-content-hidden");
+                secServer.classList.add("tab-content-hidden");
+
+                if (tabName === 'controller') {
+                    secFaceplate.classList.remove("tab-content-hidden");
+                    btnController.classList.add("active");
+                } else if (tabName === 'trend') {
+                    secTrend.classList.remove("tab-content-hidden");
+                    btnTrend.classList.add("active");
+                } else if (tabName === 'server') {
+                    secServer.classList.remove("tab-content-hidden");
+                    btnServer.classList.add("active");
+                }
+            } else {
+                secFaceplate.classList.remove("tab-content-hidden");
+                secTrend.classList.remove("tab-content-hidden");
+                secServer.classList.remove("tab-content-hidden");
+            }
+
+            setTimeout(() => {
+                drawTrendChart();
+                drawYokogawaFaceplate();
+            }, 50);
+        }
+
+        window.addEventListener("resize", () => {
+            if (window.innerWidth > 768) {
+                document.getElementById("secFaceplate").classList.remove("tab-content-hidden");
+                document.getElementById("secTrend").classList.remove("tab-content-hidden");
+                document.getElementById("secServer").classList.remove("tab-content-hidden");
+            } else {
+                switchMobileTab(state.currentTab);
+            }
+            drawTrendChart();
+            drawYokogawaFaceplate();
+        });
 
         /* =================================================================
            KOMUNIKASI WEBSOCKET TERHUBUNG KE PLANT SERVER (Python HMI Channel)
@@ -654,7 +890,7 @@
         }
 
         /* =================================================================
-           RENDER FACEPLATE & CANVAS (Identik dgn versi sebelumnya)
+           RENDER FACEPLATE & CANVAS
            ================================================================= */
         const fpCanvas = document.getElementById("faceplateCanvas");
         const fpCtx = fpCanvas.getContext("2d");
@@ -755,19 +991,25 @@
         const trendCtx = trendCanvas.getContext("2d");
 
         function drawTrendChart() {
-            trendCanvas.width = trendCanvas.parentElement.clientWidth;
-            trendCanvas.height = trendCanvas.parentElement.clientHeight - 30;
+            let wrap = document.getElementById("trendCanvasWrap");
+            if (!wrap) return;
 
-            let w = trendCanvas.width, h = trendCanvas.height;
+            let w = wrap.clientWidth || 300;
+            let h = wrap.clientHeight || 220;
+            if (w <= 0 || h <= 0) return;
+
+            trendCanvas.width = w;
+            trendCanvas.height = h;
+
             trendCtx.fillStyle = "#121417";
             trendCtx.fillRect(0, 0, w, h);
 
-            let padL = 50, padR = 20, padB = 20;
+            let padL = 45, padR = 15, padB = 20;
             let chartH = h - padB;
             let topH = chartH * 0.58, botH = chartH * 0.32;
             let botTop = topH + 15;
 
-            const numXDivs = 10;
+            const numXDivs = w < 480 ? 5 : 10;
             trendCtx.strokeStyle = "#2B303C";
             trendCtx.lineWidth = 1;
 
@@ -800,7 +1042,7 @@
                 trendCtx.beginPath(); trendCtx.moveTo(padL, y); trendCtx.lineTo(w - padR, y); trendCtx.stroke();
             }
 
-            let stepX = (w - padL - padR) / (state.maxPoints - 1);
+            let stepX = (w - padL - padR) / Math.max(1, (state.maxPoints - 1));
             let currentLen = p.spBuffer.length;
 
             trendCtx.strokeStyle = "#FF0000";
@@ -845,10 +1087,10 @@
             trendCtx.fillStyle = "#A0AAB0";
             trendCtx.font = "9px Arial";
             trendCtx.textAlign = "left";
-            trendCtx.fillText(state.eu_max.toFixed(0), 10, 12);
-            trendCtx.fillText(state.eu_min.toFixed(0), 10, topH);
-            trendCtx.fillText("100%", 10, botTop + 10);
-            trendCtx.fillText("0%", 10, botTop + botH);
+            trendCtx.fillText(state.eu_max.toFixed(0), 5, 12);
+            trendCtx.fillText(state.eu_min.toFixed(0), 5, topH);
+            trendCtx.fillText("100%", 5, botTop + 10);
+            trendCtx.fillText("0%", 5, botTop + botH);
         }
 
         /* =================================================================
@@ -856,9 +1098,10 @@
            ================================================================= */
         let activeModalCallback = null;
 
-        function openModal(title, fieldsHtml, onApply) {
+        function openModal(title, fieldsHtml, onApply, showApplyBtn = true) {
             document.getElementById("modalTitle").innerText = title;
             document.getElementById("modalContent").innerHTML = fieldsHtml;
+            document.getElementById("btnModalApply").style.display = showApplyBtn ? "inline-block" : "none";
             document.getElementById("modalOverlay").style.display = "flex";
             activeModalCallback = onApply;
         }
@@ -883,9 +1126,9 @@
         function openModeDialog() {
             const p = state.plants[state.activePlantIndex];
             let html = `
-                <label><input type="radio" name="mOpt" value="AUT" ${p.mode === 'AUT' ? 'checked' : ''}> AUT</label>
-                <label><input type="radio" name="mOpt" value="MAN" ${p.mode === 'MAN' ? 'checked' : ''}> MAN</label>
-                <label><input type="radio" name="mOpt" value="CAS" ${p.mode === 'CAS' ? 'checked' : ''}> CAS</label>
+                <label style="grid-column: 1 / -1;"><input type="radio" name="mOpt" value="AUT" ${p.mode === 'AUT' ? 'checked' : ''}> AUT</label>
+                <label style="grid-column: 1 / -1;"><input type="radio" name="mOpt" value="MAN" ${p.mode === 'MAN' ? 'checked' : ''}> MAN</label>
+                <label style="grid-column: 1 / -1;"><input type="radio" name="mOpt" value="CAS" ${p.mode === 'CAS' ? 'checked' : ''}> CAS</label>
             `;
             openModal("Select Target Mode", html, () => {
                 let sel = document.querySelector('input[name="mOpt"]:checked');
@@ -899,13 +1142,13 @@
         function openValueDialog(target) {
             const p = state.plants[state.activePlantIndex];
             if (target === "MV" && p.mode !== "MAN") {
-                alert("Perubahan MV hanya diperbolehkan pada Mode MANUAL (MAN)!");
+                openModal("Peringatan", "<p style='color:#FF1744; grid-column:1/-1;'>Perubahan MV hanya diperbolehkan pada Mode MANUAL (MAN)!</p>", null, false);
                 return;
             }
             let currVal = target === "MV" ? p.mv : pctToEu(p.sp_pct);
             let html = `
                 <label>Enter ${target} Target:</label>
-                <input type="text" id="valInput" value="${currVal.toFixed(1)}">
+                <input type="number" id="valInput" step="any" value="${currVal.toFixed(1)}">
             `;
             openModal(`Change ${target} Value`, html, () => {
                 let v = parseFloat(document.getElementById("valInput").value);
@@ -927,9 +1170,9 @@
             let isLinActive = p.enableLinearization;
 
             let html = `
-                <label>Kc (Gain):</label><input type="text" id="cfgKc" value="${Math.abs(p.Kc)}">
-                <label>Ti (s):</label><input type="text" id="cfgTi" value="${p.Ti}">
-                <label>Td (s):</label><input type="text" id="cfgTd" value="${p.Td}">
+                <label>Kc (Gain):</label><input type="number" id="cfgKc" step="any" value="${Math.abs(p.Kc)}">
+                <label>Ti (s):</label><input type="number" id="cfgTi" step="any" value="${p.Ti}">
+                <label>Td (s):</label><input type="number" id="cfgTd" step="any" value="${p.Td}">
                 
                 <label>Control Action:</label>
                 <select id="cfgAction">
@@ -950,11 +1193,11 @@
                 </select>
 
                 <label>Rangeability (R):</label>
-                <input type="text" id="cfgR" value="${p.R}" ${!isLinActive ? 'disabled' : ''}>
+                <input type="number" id="cfgR" step="any" value="${p.R}" ${!isLinActive ? 'disabled' : ''}>
 
                 <label>EU Unit:</label><input type="text" id="cfgUnit" value="${state.eu_unit}">
-                <label>EU Min:</label><input type="text" id="cfgMin" value="${state.eu_min}">
-                <label>EU Max:</label><input type="text" id="cfgMax" value="${state.eu_max}">
+                <label>EU Min:</label><input type="number" id="cfgMin" step="any" value="${state.eu_min}">
+                <label>EU Max:</label><input type="number" id="cfgMax" step="any" value="${state.eu_max}">
             `;
 
             openModal(`Parameters Config (PID #${state.activePlantIndex + 1})`, html, () => {
@@ -980,6 +1223,7 @@
                 });
 
                 if (state.eu_max !== oldEuMax) {
+                    sendEuMaxSavedToServer = state.eu_max;
                     sendEuMaxToServer(state.eu_max);
                 }
 
@@ -992,8 +1236,12 @@
 
         window.onload = () => {
             initWebSocket();
-            drawYokogawaFaceplate();
-            drawTrendChart();
+            if (window.innerWidth <= 768) {
+                switchMobileTab('controller');
+            } else {
+                drawYokogawaFaceplate();
+                drawTrendChart();
+            }
             updateTrendConfig();
         };
     </script>
