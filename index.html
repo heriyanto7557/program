@@ -139,6 +139,32 @@
             white-space: pre;
         }
 
+        /* TOMBOL DIAMOND BIRU (MODE/MENU) */
+        .btn-blue-diamond {
+            position: absolute;
+            top: 6px;
+            right: 48px;
+            width: 28px;
+            height: 28px;
+            background-color: #1A2230;
+            color: #00BFFF;
+            border: 2px solid #00BFFF;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 4px rgba(0, 191, 255, 0.4);
+            transition: all 0.1s ease;
+        }
+
+        .btn-blue-diamond:hover {
+            background-color: #00BFFF;
+            color: #000;
+        }
+
         .btn-ack {
             position: absolute;
             top: 6px;
@@ -442,6 +468,8 @@
                 <div class="status-box">
                     <div id="indSq" class="ind-sq"></div>
                     <div id="lblModeText" class="lbl-mode-text">AUT&#10;NR</div>
+                    <!-- TOMBOL DIAMOND BIRU (MODE/MENU) -->
+                    <button class="btn-blue-diamond" onclick="openModeDialog()" title="Mode Menu">◇</button>
                     <button class="btn-ack" onclick="acknowledgeAlarm()">ACK</button>
                 </div>
 
