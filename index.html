@@ -78,7 +78,7 @@
             background-color: #808080;
             padding: 3px;
             border: 2px outset #B0B0B0;
-            width: 175px;
+            width: 185px;
             height: 100%;
             flex-shrink: 0;
             border-radius: 4px;
@@ -234,7 +234,7 @@
 
         .trend-frame {
             flex: 1;
-            min-height: 0; /* Wajib agar flexbox bisa mengecil dengan benar */
+            min-height: 0;
             background-color: #2B303C;
             border: 2px inset #121417;
             display: flex;
@@ -246,7 +246,7 @@
 
         .trend-canvas-wrap {
             flex: 1;
-            min-height: 0; /* Wajib untuk mencegah feedback loop ukuran canvas */
+            min-height: 0;
             position: relative;
             width: 100%;
             overflow: hidden;
@@ -740,17 +740,38 @@
             fpCtx.fillRect(barLeft, barTop, barRight - barLeft, barBottom - barTop);
             fpCtx.strokeRect(barLeft, barTop, barRight - barLeft, barBottom - barTop);
 
+            // PV Bar Fill
             let pvH = (Math.max(0, Math.min(100, p.pv_pct)) / 100.0) * (barBottom - barTop);
             fpCtx.fillStyle = "#00FF00";
             fpCtx.fillRect(barLeft + 2, barBottom - pvH, (barRight - barLeft) - 4, pvH - 1);
 
+            // MV Diamond Indicator (Yellow, Left side)
             let mvY = barBottom - ((Math.max(0, Math.min(100, p.mv)) / 100.0) * (barBottom - barTop));
             fpCtx.fillStyle = "#FFFF00";
-            fpCtx.beginPath(); fpCtx.moveTo(barLeft - 2, mvY); fpCtx.lineTo(barLeft - 14, mvY - 7); fpCtx.lineTo(barLeft - 14, mvY + 7); fpCtx.closePath(); fpCtx.fill(); fpCtx.stroke();
+            fpCtx.strokeStyle = "#000";
+            fpCtx.lineWidth = 1;
+            fpCtx.beginPath();
+            fpCtx.moveTo(barLeft, mvY);
+            fpCtx.lineTo(barLeft - 7, mvY - 5);
+            fpCtx.lineTo(barLeft - 14, mvY);
+            fpCtx.lineTo(barLeft - 7, mvY + 5);
+            fpCtx.closePath();
+            fpCtx.fill();
+            fpCtx.stroke();
 
+            // SP Diamond Indicator (Red, Right side)
             let spY = barBottom - ((Math.max(0, Math.min(100, p.sp_pct)) / 100.0) * (barBottom - barTop));
             fpCtx.fillStyle = "#FF0000";
-            fpCtx.beginPath(); fpCtx.moveTo(barRight + 2, spY); fpCtx.lineTo(barRight + 14, spY - 7); fpCtx.lineTo(barRight + 14, spY + 7); fpCtx.closePath(); fpCtx.fill(); fpCtx.stroke();
+            fpCtx.strokeStyle = "#000";
+            fpCtx.lineWidth = 1;
+            fpCtx.beginPath();
+            fpCtx.moveTo(barRight, spY);
+            fpCtx.lineTo(barRight + 7, spY - 5);
+            fpCtx.lineTo(barRight + 14, spY);
+            fpCtx.lineTo(barRight + 7, spY + 5);
+            fpCtx.closePath();
+            fpCtx.fill();
+            fpCtx.stroke();
         }
 
         const trendCanvas = document.getElementById("trendCanvas");
@@ -765,53 +786,73 @@
 
             trendCanvas.width = w;
             trendCanvas.height = h;
+
+            // Trend Background
             trendCtx.fillStyle = "#121417";
             trendCtx.fillRect(0, 0, w, h);
 
-            let padL = 40, padR = 15, padB = 18;
-            let chartH = h - padB;
-            let topH = chartH * 0.6, botH = chartH * 0.3;
-            let botTop = topH + 12;
+            let padL = 45, padR = 15, padT = 15, padB = 25;
+            let chartW = w - padL - padR;
+            let chartH = h - padT - padB;
+
+            // Draw Grid Lines (Horizontal & Vertical)
+            trendCtx.strokeStyle = "#252B35";
+            trendCtx.lineWidth = 1;
+
+            for (let i = 0; i <= 4; i++) {
+                let y = padT + (chartH / 4) * i;
+                trendCtx.beginPath();
+                trendCtx.moveTo(padL, y);
+                trendCtx.lineTo(w - padR, y);
+                trendCtx.stroke();
+
+                // Y-Axis Value Labels
+                let val = state.eu_max - (i / 4) * (state.eu_max - state.eu_min);
+                trendCtx.fillStyle = "#A0AAB0";
+                trendCtx.font = "9px Consolas, monospace";
+                trendCtx.textAlign = "right";
+                trendCtx.fillText(val.toFixed(0), padL - 6, y + 3);
+            }
+
+            for (let i = 0; i <= 5; i++) {
+                let x = padL + (chartW / 5) * i;
+                trendCtx.beginPath();
+                trendCtx.moveTo(x, padT);
+                trendCtx.lineTo(x, padT + chartH);
+                trendCtx.stroke();
+            }
+
+            // Outer Chart Border
+            trendCtx.strokeStyle = "#3A404D";
+            trendCtx.lineWidth = 1;
+            trendCtx.strokeRect(padL, padT, chartW, chartH);
 
             const p = state.plants[state.activePlantIndex];
-            let stepX = (w - padL - padR) / Math.max(1, (state.maxPoints - 1));
             let currentLen = p.spBuffer.length;
+            if (currentLen < 2) return;
 
-            // SP Line
-            trendCtx.strokeStyle = "#FF0000";
-            trendCtx.lineWidth = 1.5;
-            trendCtx.beginPath();
-            for (let i = 0; i < currentLen; i++) {
-                let yPct = (p.spBuffer[i] - state.eu_min) / (state.eu_max - state.eu_min);
-                let y = topH - (yPct * topH);
-                let x = padL + i * stepX;
-                if (i === 0) trendCtx.moveTo(x, y); else trendCtx.lineTo(x, y);
-            }
-            trendCtx.stroke();
+            let stepX = chartW / Math.max(1, (state.maxPoints - 1));
 
-            // PV Line
-            trendCtx.strokeStyle = "#00FF00";
-            trendCtx.lineWidth = 1.5;
-            trendCtx.beginPath();
-            for (let i = 0; i < currentLen; i++) {
-                let yPct = (p.pvBuffer[i] - state.eu_min) / (state.eu_max - state.eu_min);
-                let y = topH - (yPct * topH);
-                let x = padL + i * stepX;
-                if (i === 0) trendCtx.moveTo(x, y); else trendCtx.lineTo(x, y);
+            // Helper to draw signal line
+            function plotLine(buffer, color, isPct = false) {
+                trendCtx.strokeStyle = color;
+                trendCtx.lineWidth = 1.5;
+                trendCtx.beginPath();
+                for (let i = 0; i < currentLen; i++) {
+                    let val = buffer[i];
+                    let yPct = isPct ? (val / 100.0) : ((val - state.eu_min) / (state.eu_max - state.eu_min));
+                    let y = padT + chartH - (yPct * chartH);
+                    let x = padL + i * stepX;
+                    if (i === 0) trendCtx.moveTo(x, y);
+                    else trendCtx.lineTo(x, y);
+                }
+                trendCtx.stroke();
             }
-            trendCtx.stroke();
 
-            // MV Line
-            trendCtx.strokeStyle = "#FFFF00";
-            trendCtx.lineWidth = 1.5;
-            trendCtx.beginPath();
-            for (let i = 0; i < currentLen; i++) {
-                let yPct = p.mvBuffer[i] / 100.0;
-                let y = (botTop + botH) - (yPct * botH);
-                let x = padL + i * stepX;
-                if (i === 0) trendCtx.moveTo(x, y); else trendCtx.lineTo(x, y);
-            }
-            trendCtx.stroke();
+            // SP (Red), PV (Green), MV (Yellow)
+            plotLine(p.spBuffer, "#FF0000", false);
+            plotLine(p.pvBuffer, "#00FF00", false);
+            plotLine(p.mvBuffer, "#FFFF00", true);
         }
 
         let activeModalCallback = null;
