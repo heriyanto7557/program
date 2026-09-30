@@ -535,16 +535,7 @@
                     <div class="trend-ctrl-group">
                         <span>Plant Target:</span>
                         <select id="cbPlantSelect" onchange="changeActivePlant(this.value)">
-                            <option value="0">Plant #1</option>
-                            <option value="1">Plant #2</option>
-                            <option value="2">Plant #3</option>
-                            <option value="3">Plant #4</option>
-                            <option value="4">Plant #5</option>
-                            <option value="5">Plant #6</option>
-                            <option value="6">Plant #7</option>
-                            <option value="7">Plant #8</option>
-                            <option value="8">Plant #9</option>
-                            <option value="9">Plant #10</option>
+                            <!-- Akan diisi otomatis oleh JavaScript -->
                         </select>
                     </div>
 
@@ -622,7 +613,7 @@
         }
 
         const NUM_PLANTS = 50;
-        
+
         // Helper untuk menjamin variabel numerik tidak pernah bernilai NaN / Infinity
         function safeNum(val, defaultVal = 0.0) {
             let n = parseFloat(val);
@@ -649,7 +640,7 @@
             eu_unit: "MMSCFD",
             eu_min: 0.0,
             eu_max: 100.0,
-            
+
             trendSpanSec: 100,
             trendRefreshMs: 100,
             maxPoints: 1000,
@@ -773,7 +764,7 @@
                 state.ws.onmessage = (event) => {
                     try {
                         const data = JSON.parse(event.data);
-                        
+
                         if (data.eu_max !== undefined && data.eu_max !== null) {
                             let parsedMax = safeNum(data.eu_max, 100.0);
                             if (parsedMax > state.eu_min) {
@@ -1003,7 +994,7 @@
 
             const lblModeText = document.getElementById("lblModeText");
             if (lblModeText) lblModeText.innerText = `${p.mode}\n${state.alarmStatus}`;
-            
+
             let btnAck = document.querySelector(".btn-ack");
             if (btnAck) btnAck.style.backgroundColor = !state.alarmAck ? "#FF1744" : "#4A5162";
 
@@ -1216,7 +1207,7 @@
             if (contentEl) contentEl.innerHTML = fieldsHtml;
             if (btnApply) btnApply.style.display = showApplyBtn ? "inline-block" : "none";
             if (overlay) overlay.style.display = "flex";
-            
+
             activeModalCallback = onApply;
         }
 
@@ -1341,7 +1332,7 @@
 
                 if (unitEl) state.eu_unit = unitEl.value || "%";
                 if (minEl) state.eu_min = safeNum(minEl.value, 0.0);
-                
+
                 let oldEuMax = state.eu_max;
                 if (maxEl) state.eu_max = safeNum(maxEl.value, 100.0);
 
@@ -1355,7 +1346,7 @@
                 const lblSvUnit = document.getElementById("lblSvUnit");
                 if (lblPvUnit) lblPvUnit.innerText = state.eu_unit;
                 if (lblSvUnit) lblSvUnit.innerText = state.eu_unit;
-                
+
                 updateUIReadouts();
             });
         }
@@ -1374,7 +1365,32 @@
             }
             updateTrendConfig();
         };
-</script>
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const select = document.getElementById("cbPlantSelect");
+            const totalPlants = 50;
+            const plantsPerGroup = 10;
+
+            for (let i = 0; i < totalPlants; i += plantsPerGroup) {
+                const start = i + 1;
+                const end = i + plantsPerGroup;
+
+                // Buat grup baru
+                const group = document.createElement("optgroup");
+                group.label = `Plant ${start} - ${end}`;
+
+                // Isi grup dengan 10 option
+                for (let j = start; j <= end; j++) {
+                    const option = document.createElement("option");
+                    option.value = j - 1; // Index 0..49
+                    option.textContent = `Plant #${j}`;
+                    group.appendChild(option);
+                }
+
+                select.appendChild(group);
+            }
+        });
+    </script>
 
 </body>
 
