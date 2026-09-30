@@ -76,7 +76,7 @@
             width: 180px;
             flex-shrink: 0;
             border-radius: 4px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
         }
 
         .faceplate {
@@ -233,7 +233,6 @@
             overflow: hidden;
         }
 
-        /* Dedicated Canvas Wrapper to break Flexbox feedback resize loop */
         .trend-canvas-wrap {
             flex: 1;
             position: relative;
@@ -355,7 +354,7 @@
             max-width: 420px;
             max-height: 90vh;
             overflow-y: auto;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.8);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8);
             border-radius: 6px;
         }
 
@@ -472,7 +471,8 @@
 <body>
 
     <div class="mobile-tab-bar" id="mobileTabBar">
-        <button class="tab-btn active" id="tabBtnController" onclick="switchMobileTab('controller')">🎛️ Faceplate</button>
+        <button class="tab-btn active" id="tabBtnController" onclick="switchMobileTab('controller')">🎛️
+            Faceplate</button>
         <button class="tab-btn" id="tabBtnTrend" onclick="switchMobileTab('trend')">📈 Trend Chart</button>
         <button class="tab-btn" id="tabBtnServer" onclick="switchMobileTab('server')">⚙️ Server & Config</button>
     </div>
@@ -550,7 +550,8 @@
 
                     <div class="trend-ctrl-group">
                         <span>Span:</span>
-                        <input type="number" id="txtTrendSpan" value="100" min="5" max="3600" style="width: 60px;" onchange="changeTrendSpan(this.value)">
+                        <input type="number" id="txtTrendSpan" value="100" min="5" max="3600" style="width: 60px;"
+                            onchange="changeTrendSpan(this.value)">
                         <span>s</span>
                     </div>
 
@@ -565,8 +566,10 @@
 
                     <div class="trend-ctrl-group">
                         <span>Nilai IAE:</span>
-                        <span id="txtIaeVal" style="color: #FF9800; font-family: 'Consolas', monospace; font-size: 13px;">0.00</span>
-                        <button class="btn-apply" onclick="resetIAE()" style="padding: 3px 8px; font-size: 11px;">Reset</button>
+                        <span id="txtIaeVal"
+                            style="color: #FF9800; font-family: 'Consolas', monospace; font-size: 13px;">0.00</span>
+                        <button class="btn-apply" onclick="resetIAE()"
+                            style="padding: 3px 8px; font-size: 11px;">Reset</button>
                     </div>
                 </div>
             </div>
@@ -601,21 +604,39 @@
     </div>
 
     <script>
-        const NUM_PLANTS = 10;
+        /* =================================================================
+           STRUKTUR KONFIGURASI PARAMETER PID (50 PLANT SUPPORT)
+           ================================================================= */
+        class PIDConfig {
+            constructor(Kc = 2.0, Ti = 4.0, Td = 0.05, sampleTime = 0.1) {
+                this.Kc = Math.abs(Kc);
+                this.Ti = Ti;
+                this.Td = Td;
+                this.sampleTime = sampleTime;
+
+                this.enableLinearization = false;
+                this.R = 50.0;
+                this.action = "REVERSE";
+                this.valveType = "FC";
+            }
+        }
+
+        const NUM_PLANTS = 50;
+        
+        // Helper untuk menjamin variabel numerik tidak pernah bernilai NaN / Infinity
+        function safeNum(val, defaultVal = 0.0) {
+            let n = parseFloat(val);
+            return (isNaN(n) || !isFinite(n)) ? defaultVal : n;
+        }
+
         const state = {
             activePlantIndex: 0,
             plants: Array.from({ length: NUM_PLANTS }, () => ({
-                sp_pct: 50.0,
-                pv_pct: 0.0,
-                mv: 0.0,
+                pid: new PIDConfig(1.0, 4.0, 0.0, 0.1),
+                sp_pct: 50.0,  // Nilai awal SP 50%
+                pv_pct: 0.0,   // Nilai awal PV 0%
+                mv: 0.0,       // Nilai awal MV 0%
                 mode: "AUT",
-                kc: 1.0,
-                ti: 4.0,
-                td: 0.0,
-                action: "REVERSE",
-                valveType: "FC",
-                enableLinearization: false,
-                r: 50.0,
                 iae: 0.0,
                 spBuffer: [],
                 pvBuffer: [],
@@ -629,10 +650,10 @@
             eu_min: 0.0,
             eu_max: 100.0,
             
-            trendSpanSec: 100,      // Default SPAN 100 detik
-            trendRefreshMs: 100,    // Default 100 ms
-            maxPoints: 1000,        // maxPoints = trendSpanSec / dt
-            simTimer: null,         // Handle untuk setInterval
+            trendSpanSec: 100,
+            trendRefreshMs: 100,
+            maxPoints: 1000,
+            simTimer: null,
 
             alarmStatus: "NR",
             alarmAck: true,
@@ -643,10 +664,33 @@
             currentTab: 'controller'
         };
 
-        function pctToEu(pct) { return state.eu_min + (pct / 100.0) * (state.eu_max - state.eu_min); }
+        function pctToEu(pct) {
+            let validPct = safeNum(pct, 0.0);
+            let min = safeNum(state.eu_min, 0.0);
+            let max = safeNum(state.eu_max, 100.0);
+            return min + (validPct / 100.0) * (max - min);
+        }
+
         function euToPct(eu) {
-            let span = state.eu_max - state.eu_min;
-            return span === 0 ? 0.0 : ((eu - state.eu_min) / span) * 100.0;
+            let validEu = safeNum(eu, 0.0);
+            let min = safeNum(state.eu_min, 0.0);
+            let max = safeNum(state.eu_max, 100.0);
+            let span = max - min;
+            return span === 0 ? 0.0 : ((validEu - min) / span) * 100.0;
+        }
+
+        function populatePlantDropdown() {
+            const selectEl = document.getElementById("selPlant") || document.getElementById("cmbPlant") || document.getElementById("selectPlant");
+            if (selectEl) {
+                selectEl.innerHTML = "";
+                for (let i = 0; i < NUM_PLANTS; i++) {
+                    const opt = document.createElement("option");
+                    opt.value = i;
+                    opt.textContent = `Plant #${i + 1}`;
+                    selectEl.appendChild(opt);
+                }
+                selectEl.value = state.activePlantIndex;
+            }
         }
 
         function switchMobileTab(tabName) {
@@ -659,29 +703,29 @@
             const btnTrend = document.getElementById("tabBtnTrend");
             const btnServer = document.getElementById("tabBtnServer");
 
-            btnController.classList.remove("active");
-            btnTrend.classList.remove("active");
-            btnServer.classList.remove("active");
+            if (btnController) btnController.classList.remove("active");
+            if (btnTrend) btnTrend.classList.remove("active");
+            if (btnServer) btnServer.classList.remove("active");
 
             if (window.innerWidth <= 768) {
-                secFaceplate.classList.add("tab-content-hidden");
-                secTrend.classList.add("tab-content-hidden");
-                secServer.classList.add("tab-content-hidden");
+                if (secFaceplate) secFaceplate.classList.add("tab-content-hidden");
+                if (secTrend) secTrend.classList.add("tab-content-hidden");
+                if (secServer) secServer.classList.add("tab-content-hidden");
 
-                if (tabName === 'controller') {
+                if (tabName === 'controller' && secFaceplate) {
                     secFaceplate.classList.remove("tab-content-hidden");
-                    btnController.classList.add("active");
-                } else if (tabName === 'trend') {
+                    if (btnController) btnController.classList.add("active");
+                } else if (tabName === 'trend' && secTrend) {
                     secTrend.classList.remove("tab-content-hidden");
-                    btnTrend.classList.add("active");
-                } else if (tabName === 'server') {
+                    if (btnTrend) btnTrend.classList.add("active");
+                } else if (tabName === 'server' && secServer) {
                     secServer.classList.remove("tab-content-hidden");
-                    btnServer.classList.add("active");
+                    if (btnServer) btnServer.classList.add("active");
                 }
             } else {
-                secFaceplate.classList.remove("tab-content-hidden");
-                secTrend.classList.remove("tab-content-hidden");
-                secServer.classList.remove("tab-content-hidden");
+                if (secFaceplate) secFaceplate.classList.remove("tab-content-hidden");
+                if (secTrend) secTrend.classList.remove("tab-content-hidden");
+                if (secServer) secServer.classList.remove("tab-content-hidden");
             }
 
             setTimeout(() => {
@@ -692,9 +736,12 @@
 
         window.addEventListener("resize", () => {
             if (window.innerWidth > 768) {
-                document.getElementById("secFaceplate").classList.remove("tab-content-hidden");
-                document.getElementById("secTrend").classList.remove("tab-content-hidden");
-                document.getElementById("secServer").classList.remove("tab-content-hidden");
+                const secFaceplate = document.getElementById("secFaceplate");
+                const secTrend = document.getElementById("secTrend");
+                const secServer = document.getElementById("secServer");
+                if (secFaceplate) secFaceplate.classList.remove("tab-content-hidden");
+                if (secTrend) secTrend.classList.remove("tab-content-hidden");
+                if (secServer) secServer.classList.remove("tab-content-hidden");
             } else {
                 switchMobileTab(state.currentTab);
             }
@@ -703,7 +750,8 @@
         });
 
         function initWebSocket() {
-            const ip = document.getElementById("txtServerIp").value.trim();
+            const ipInput = document.getElementById("txtServerIp");
+            const ip = ipInput ? ipInput.value.trim() : "127.0.0.1";
             state.wsUrl = `ws://${ip}:8765`;
 
             if (state.ws) {
@@ -715,42 +763,61 @@
 
                 state.ws.onopen = () => {
                     const badge = document.getElementById("netStatusBadge");
-                    badge.innerText = "TERHUBUNG";
-                    badge.className = "status-badge status-connected";
-                    
+                    if (badge) {
+                        badge.innerText = "TERHUBUNG (50 PLANTS)";
+                        badge.className = "status-badge status-connected";
+                    }
                     sendEuMaxToServer(state.eu_max);
                 };
 
                 state.ws.onmessage = (event) => {
-                    const data = JSON.parse(event.data);
-                    
-                    if (data.eu_max !== undefined && data.eu_max !== state.eu_max) {
-                        state.eu_max = data.eu_max;
-                    }
-
-                    if (data.pv) {
-                        for (let i = 0; i < NUM_PLANTS; i++) {
-                            const p = state.plants[i];
-                            if (data.pv[i] !== undefined) p.pv_pct = euToPct(data.pv[i]);
-                            if (data.sp && data.sp[i] !== undefined) p.sp_pct = euToPct(data.sp[i]);
-                            if (data.mv && data.mv[i] !== undefined) p.mv = data.mv[i];
-                            if (data.mode && data.mode[i] !== undefined) p.mode = data.mode[i];
+                    try {
+                        const data = JSON.parse(event.data);
+                        
+                        if (data.eu_max !== undefined && data.eu_max !== null) {
+                            let parsedMax = safeNum(data.eu_max, 100.0);
+                            if (parsedMax > state.eu_min) {
+                                state.eu_max = parsedMax;
+                            }
                         }
-                        updateUIReadouts();
+
+                        if (data.pv || data.sp || data.mv || data.mode) {
+                            for (let i = 0; i < NUM_PLANTS; i++) {
+                                const p = state.plants[i];
+
+                                if (Array.isArray(data.pv) && data.pv[i] !== undefined && data.pv[i] !== null) {
+                                    p.pv_pct = euToPct(safeNum(data.pv[i], 0.0));
+                                }
+                                if (Array.isArray(data.sp) && data.sp[i] !== undefined && data.sp[i] !== null) {
+                                    p.sp_pct = euToPct(safeNum(data.sp[i], 50.0));
+                                }
+                                if (Array.isArray(data.mv) && data.mv[i] !== undefined && data.mv[i] !== null) {
+                                    p.mv = safeNum(data.mv[i], 0.0);
+                                }
+                                if (Array.isArray(data.mode) && data.mode[i] !== undefined) {
+                                    p.mode = data.mode[i];
+                                }
+                            }
+                            updateUIReadouts();
+                        }
+                    } catch (e) {
+                        console.error("Kesalahan membaca JSON WebSocket:", e);
                     }
                 };
 
                 state.ws.onclose = () => {
                     const badge = document.getElementById("netStatusBadge");
-                    badge.innerText = "TERPUTUS";
-                    badge.className = "status-badge status-disconnected";
+                    if (badge) {
+                        badge.innerText = "TERPUTUS";
+                        badge.className = "status-badge status-disconnected";
+                    }
                 };
 
                 state.ws.onerror = () => {
                     if (state.ws) state.ws.close();
                 };
             } catch (e) {
-                console.error("Gagal membuka WebSocket:", e);
+                console.error("Gagal membuka koneksi WebSocket:", e);
             }
         }
 
@@ -758,12 +825,12 @@
             initWebSocket();
         }
 
-        function sendSpToServer(plantIdx, spVal) {
+        function sendSpToServer(plantIdx, spValPct) {
             if (state.ws && state.ws.readyState === WebSocket.OPEN) {
                 state.ws.send(JSON.stringify({
                     command: "write_sp",
                     plant_index: plantIdx,
-                    sp_value: pctToEu(spVal)
+                    sp_value: pctToEu(spValPct)
                 }));
             }
         }
@@ -773,7 +840,7 @@
                 state.ws.send(JSON.stringify({
                     command: "write_mv",
                     plant_index: plantIdx,
-                    mv_value: mvVal
+                    mv_value: safeNum(mvVal, 0.0)
                 }));
             }
         }
@@ -788,21 +855,18 @@
             }
         }
 
-        function sendConfigToServer(plantIdx, config) {
+        function sendPidConfigToServer(plantIdx, pidConfig) {
             if (state.ws && state.ws.readyState === WebSocket.OPEN) {
                 state.ws.send(JSON.stringify({
-                    command: "write_config",
+                    command: "write_pid_config",
                     plant_index: plantIdx,
-                    kc: config.kc,
-                    ti: config.ti,
-                    td: config.td,
-                    action: config.action,
-                    valve_type: config.valveType,
-                    linearization: config.enableLinearization,
-                    r: config.r,
-                    eu_unit: config.eu_unit,
-                    eu_min: config.eu_min,
-                    eu_max: config.eu_max
+                    kc: pidConfig.Kc,
+                    ti: pidConfig.Ti,
+                    td: pidConfig.Td,
+                    action: pidConfig.action,
+                    valve_type: pidConfig.valveType,
+                    linearization: pidConfig.enableLinearization,
+                    r_val: pidConfig.R
                 }));
             }
         }
@@ -811,7 +875,7 @@
             if (state.ws && state.ws.readyState === WebSocket.OPEN) {
                 state.ws.send(JSON.stringify({
                     command: "write_eu_max",
-                    eu_max: euMaxVal
+                    eu_max: safeNum(euMaxVal, 100.0)
                 }));
             }
         }
@@ -822,12 +886,17 @@
             for (let i = 0; i < NUM_PLANTS; i++) {
                 const p = state.plants[i];
 
-                const absError = Math.abs(pctToEu(p.sp_pct) - pctToEu(p.pv_pct));
-                p.iae += absError * state.dt;
+                let pvEu = pctToEu(p.pv_pct);
+                let spEu = pctToEu(p.sp_pct);
 
-                p.spBuffer.push(pctToEu(p.sp_pct));
-                p.pvBuffer.push(pctToEu(p.pv_pct));
-                p.mvBuffer.push(p.mv);
+                const absError = Math.abs(spEu - pvEu);
+                if (!isNaN(absError) && isFinite(absError)) {
+                    p.iae += absError * state.dt;
+                }
+
+                p.spBuffer.push(spEu);
+                p.pvBuffer.push(pvEu);
+                p.mvBuffer.push(safeNum(p.mv, 0.0));
                 p.timeBuffer.push(state.sim_time);
 
                 while (p.spBuffer.length > state.maxPoints) {
@@ -840,32 +909,60 @@
 
             drawYokogawaFaceplate();
             drawTrendChart();
+            updateUIReadouts();
         }
 
         function updateUIReadouts() {
             const p = state.plants[state.activePlantIndex];
-            document.getElementById("lblPvVal").innerText = pctToEu(p.pv_pct).toFixed(2);
-            document.getElementById("lblSpVal").innerText = pctToEu(p.sp_pct).toFixed(2);
-            document.getElementById("lblMvVal").innerText = p.mv.toFixed(1);
-            document.getElementById("lblIaeVal").innerText = p.iae.toFixed(2);
-            document.getElementById("txtIaeVal").innerText = p.iae.toFixed(2);
+            if (!p) return;
+
+            const lblPv = document.getElementById("lblPvVal");
+            const lblSp = document.getElementById("lblSpVal");
+            const lblMv = document.getElementById("lblMvVal");
+            const lblIae = document.getElementById("lblIaeVal");
+            const txtIae = document.getElementById("txtIaeVal");
+
+            let pvEu = pctToEu(p.pv_pct);
+            let spEu = pctToEu(p.sp_pct);
+            let mvVal = safeNum(p.mv, 0.0);
+            let iaeVal = safeNum(p.iae, 0.0);
+
+            if (lblPv) lblPv.innerText = pvEu.toFixed(2);
+            if (lblSp) lblSp.innerText = spEu.toFixed(2);
+            if (lblMv) lblMv.innerText = mvVal.toFixed(1);
+            if (lblIae) lblIae.innerText = iaeVal.toFixed(2);
+            if (txtIae) txtIae.innerText = iaeVal.toFixed(2);
         }
 
         function resetIAE() {
             const p = state.plants[state.activePlantIndex];
-            p.iae = 0.0;
-            updateUIReadouts();
+            if (p) {
+                p.iae = 0.0;
+                updateUIReadouts();
+            }
         }
 
         function changeActivePlant(val) {
-            state.activePlantIndex = parseInt(val);
-            document.getElementById("fpPlantTitle").innerHTML = `PID #${state.activePlantIndex + 1}<br>Controller`;
-            updateUIReadouts();
+            let idx = parseInt(val);
+            if (!isNaN(idx) && idx >= 0 && idx < NUM_PLANTS) {
+                state.activePlantIndex = idx;
+                const titleEl = document.getElementById("fpPlantTitle");
+                if (titleEl) {
+                    titleEl.innerHTML = `PID #${state.activePlantIndex + 1}<br>Controller`;
+                }
+                updateUIReadouts();
+                drawYokogawaFaceplate();
+                drawTrendChart();
+            }
         }
 
         function updateTrendConfig() {
-            state.dt = state.trendRefreshMs / 1000.0;
+            state.dt = safeNum(state.trendRefreshMs / 1000.0, 0.1);
             state.maxPoints = Math.max(10, Math.floor(state.trendSpanSec / state.dt));
+
+            for (let i = 0; i < NUM_PLANTS; i++) {
+                state.plants[i].pid.sampleTime = state.dt;
+            }
 
             if (state.simTimer) {
                 clearInterval(state.simTimer);
@@ -886,10 +983,12 @@
             }
         }
 
-        const fpCanvas = document.getElementById("faceplateCanvas");
-        const fpCtx = fpCanvas.getContext("2d");
-
         function drawYokogawaFaceplate() {
+            const fpCanvas = document.getElementById("faceplateCanvas");
+            if (!fpCanvas) return;
+            const fpCtx = fpCanvas.getContext("2d");
+            if (!fpCtx) return;
+
             fpCtx.clearRect(0, 0, fpCanvas.width, fpCanvas.height);
             state.blinkState = !state.blinkState;
 
@@ -900,11 +999,13 @@
             if (state.alarmStatus === "BAD") boxColor = (!state.alarmAck && state.blinkState) ? "#FF0000" : "#800080";
             else if (["HH", "LL"].includes(state.alarmStatus)) boxColor = (!state.alarmAck && state.blinkState) ? "#FF0000" : "#990000";
             else if (["HI", "LO"].includes(state.alarmStatus)) boxColor = (!state.alarmAck && state.blinkState) ? "#FFFF00" : "#999900";
-            indSq.style.backgroundColor = boxColor;
+            if (indSq) indSq.style.backgroundColor = boxColor;
 
-            document.getElementById("lblModeText").innerText = `${p.mode}\n${state.alarmStatus}`;
+            const lblModeText = document.getElementById("lblModeText");
+            if (lblModeText) lblModeText.innerText = `${p.mode}\n${state.alarmStatus}`;
+            
             let btnAck = document.querySelector(".btn-ack");
-            btnAck.style.backgroundColor = !state.alarmAck ? "#FF1744" : "#4A5162";
+            if (btnAck) btnAck.style.backgroundColor = !state.alarmAck ? "#FF1744" : "#4A5162";
 
             const barTop = 25, barBottom = 232, barLeft = 88, barRight = 112;
 
@@ -914,11 +1015,11 @@
             fpCtx.fillRect(barLeft, barTop, barRight - barLeft, barBottom - barTop);
             fpCtx.strokeRect(barLeft, barTop, barRight - barLeft, barBottom - barTop);
 
-            let pvH = (Math.max(0, Math.min(100, p.pv_pct)) / 100.0) * (barBottom - barTop);
+            let pvH = (Math.max(0, Math.min(100, safeNum(p.pv_pct, 0))) / 100.0) * (barBottom - barTop);
             fpCtx.fillStyle = "#00FF00";
-            fpCtx.fillRect(barLeft + 2, barBottom - pvH, (barRight - barLeft) - 4, pvH - 1);
+            fpCtx.fillRect(barLeft + 2, barBottom - pvH, (barRight - barLeft) - 4, Math.max(0, pvH - 1));
 
-            let mvY = barBottom - ((Math.max(0, Math.min(100, p.mv)) / 100.0) * (barBottom - barTop));
+            let mvY = barBottom - ((Math.max(0, Math.min(100, safeNum(p.mv, 0))) / 100.0) * (barBottom - barTop));
             fpCtx.fillStyle = "#FFFF00";
             fpCtx.beginPath();
             fpCtx.moveTo(barLeft - 2, mvY);
@@ -927,7 +1028,7 @@
             fpCtx.closePath();
             fpCtx.fill(); fpCtx.stroke();
 
-            let spY = barBottom - ((Math.max(0, Math.min(100, p.sp_pct)) / 100.0) * (barBottom - barTop));
+            let spY = barBottom - ((Math.max(0, Math.min(100, safeNum(p.sp_pct, 50))) / 100.0) * (barBottom - barTop));
             fpCtx.fillStyle = "#FF0000";
             fpCtx.beginPath();
             fpCtx.moveTo(barRight + 2, spY);
@@ -971,21 +1072,29 @@
             fpCtx.fill(); fpCtx.stroke();
         }
 
-        fpCanvas.addEventListener("click", (e) => {
-            const rect = fpCanvas.getBoundingClientRect();
-            let scaleX = fpCanvas.width / rect.width;
-            let scaleY = fpCanvas.height / rect.height;
-            let x = (e.clientX - rect.left) * scaleX;
-            let y = (e.clientY - rect.top) * scaleY;
-            if (x >= 84 && x <= 116 && y >= 258 && y <= 290) {
-                openConfigDialog();
+        function setupFaceplateEvents() {
+            const fpCanvas = document.getElementById("faceplateCanvas");
+            if (fpCanvas && !fpCanvas.dataset.listenerAttached) {
+                fpCanvas.addEventListener("click", (e) => {
+                    const rect = fpCanvas.getBoundingClientRect();
+                    let scaleX = fpCanvas.width / rect.width;
+                    let scaleY = fpCanvas.height / rect.height;
+                    let x = (e.clientX - rect.left) * scaleX;
+                    let y = (e.clientY - rect.top) * scaleY;
+                    if (x >= 84 && x <= 116 && y >= 258 && y <= 290) {
+                        openConfigDialog();
+                    }
+                });
+                fpCanvas.dataset.listenerAttached = "true";
             }
-        });
-
-        const trendCanvas = document.getElementById("trendCanvas");
-        const trendCtx = trendCanvas.getContext("2d");
+        }
 
         function drawTrendChart() {
+            const trendCanvas = document.getElementById("trendCanvas");
+            if (!trendCanvas) return;
+            const trendCtx = trendCanvas.getContext("2d");
+            if (!trendCtx) return;
+
             let wrap = document.getElementById("trendCanvasWrap");
             if (!wrap) return;
 
@@ -994,7 +1103,6 @@
 
             if (w <= 0 || h <= 0) return;
 
-            // Decouple canvas element resize from parent container layout bounds
             trendCanvas.width = w;
             trendCanvas.height = h;
 
@@ -1042,12 +1150,15 @@
             let stepX = (w - padL - padR) / Math.max(1, (state.maxPoints - 1));
             let currentLen = p.spBuffer.length;
 
+            let spanEu = state.eu_max - state.eu_min;
+            if (spanEu <= 0) spanEu = 100.0;
+
             // Trend SV (Merah)
             trendCtx.strokeStyle = "#FF0000";
             trendCtx.lineWidth = 1.5;
             trendCtx.beginPath();
             for (let i = 0; i < currentLen; i++) {
-                let yPct = (p.spBuffer[i] - state.eu_min) / (state.eu_max - state.eu_min);
+                let yPct = (safeNum(p.spBuffer[i], state.eu_min) - state.eu_min) / spanEu;
                 let y = topH - (yPct * topH);
                 let x = padL + i * stepX;
                 if (i === 0) trendCtx.moveTo(x, y); else trendCtx.lineTo(x, y);
@@ -1059,7 +1170,7 @@
             trendCtx.lineWidth = 1.8;
             trendCtx.beginPath();
             for (let i = 0; i < currentLen; i++) {
-                let yPct = (p.pvBuffer[i] - state.eu_min) / (state.eu_max - state.eu_min);
+                let yPct = (safeNum(p.pvBuffer[i], state.eu_min) - state.eu_min) / spanEu;
                 let y = topH - (yPct * topH);
                 let x = padL + i * stepX;
                 if (i === 0) trendCtx.moveTo(x, y); else trendCtx.lineTo(x, y);
@@ -1077,7 +1188,7 @@
             trendCtx.lineWidth = 1.5;
             trendCtx.beginPath();
             for (let i = 0; i < currentLen; i++) {
-                let yPct = p.mvBuffer[i] / 100.0;
+                let yPct = safeNum(p.mvBuffer[i], 0.0) / 100.0;
                 let y = (botTop + botH) - (yPct * botH);
                 let x = padL + i * stepX;
                 if (i === 0) trendCtx.moveTo(x, y); else trendCtx.lineTo(x, y);
@@ -1096,15 +1207,22 @@
         let activeModalCallback = null;
 
         function openModal(title, fieldsHtml, onApply, showApplyBtn = true) {
-            document.getElementById("modalTitle").innerText = title;
-            document.getElementById("modalContent").innerHTML = fieldsHtml;
-            document.getElementById("btnModalApply").style.display = showApplyBtn ? "inline-block" : "none";
-            document.getElementById("modalOverlay").style.display = "flex";
+            const titleEl = document.getElementById("modalTitle");
+            const contentEl = document.getElementById("modalContent");
+            const btnApply = document.getElementById("btnModalApply");
+            const overlay = document.getElementById("modalOverlay");
+
+            if (titleEl) titleEl.innerText = title;
+            if (contentEl) contentEl.innerHTML = fieldsHtml;
+            if (btnApply) btnApply.style.display = showApplyBtn ? "inline-block" : "none";
+            if (overlay) overlay.style.display = "flex";
+            
             activeModalCallback = onApply;
         }
 
         function closeModal() {
-            document.getElementById("modalOverlay").style.display = "none";
+            const overlay = document.getElementById("modalOverlay");
+            if (overlay) overlay.style.display = "none";
             activeModalCallback = null;
         }
 
@@ -1127,11 +1245,12 @@
                 <label style="grid-column: 1 / -1;"><input type="radio" name="mOpt" value="MAN" ${p.mode === 'MAN' ? 'checked' : ''}> MAN (Manual)</label>
                 <label style="grid-column: 1 / -1;"><input type="radio" name="mOpt" value="CAS" ${p.mode === 'CAS' ? 'checked' : ''}> CAS (Cascade)</label>
             `;
-            openModal("Select Target Mode", html, () => {
+            openModal(`Select Target Mode (Plant #${state.activePlantIndex + 1})`, html, () => {
                 let sel = document.querySelector('input[name="mOpt"]:checked');
                 if (sel) {
                     p.mode = sel.value;
                     sendModeToServer(state.activePlantIndex, p.mode);
+                    updateUIReadouts();
                 }
             });
         }
@@ -1142,14 +1261,15 @@
                 openModal("Peringatan", "<p style='color:#FF1744; grid-column:1/-1;'>Perubahan MV hanya diperbolehkan pada Mode MANUAL (MAN)!</p>", null, false);
                 return;
             }
-            let currVal = target === "MV" ? p.mv : pctToEu(p.sp_pct);
+            let currVal = target === "MV" ? safeNum(p.mv, 0) : pctToEu(p.sp_pct);
             let html = `
-                <label>Enter ${target} Target Value:</label>
+                <label>Enter ${target} Target Value (Plant #${state.activePlantIndex + 1}):</label>
                 <input type="number" id="valInput" step="any" value="${currVal.toFixed(1)}">
             `;
             openModal(`Change ${target} Value`, html, () => {
-                let v = parseFloat(document.getElementById("valInput").value);
-                if (!isNaN(v)) {
+                let valInput = document.getElementById("valInput");
+                if (valInput) {
+                    let v = safeNum(valInput.value, currVal);
                     if (target === "MV") {
                         p.mv = Math.max(0, Math.min(100, v));
                         sendMvToServer(state.activePlantIndex, p.mv);
@@ -1157,29 +1277,30 @@
                         p.sp_pct = euToPct(Math.max(state.eu_min, Math.min(state.eu_max, v)));
                         sendSpToServer(state.activePlantIndex, p.sp_pct);
                     }
+                    updateUIReadouts();
                 }
             });
         }
 
         function openConfigDialog() {
             const p = state.plants[state.activePlantIndex];
-            let isLinActive = p.enableLinearization;
+            let isLinActive = p.pid.enableLinearization;
 
             let html = `
-                <label>Kc (Gain):</label><input type="number" id="cfgKc" step="any" value="${Math.abs(p.kc)}">
-                <label>Ti (s):</label><input type="number" id="cfgTi" step="any" value="${p.ti}">
-                <label>Td (s):</label><input type="number" id="cfgTd" step="any" value="${p.td}">
+                <label>Kc (Gain):</label><input type="number" id="cfgKc" step="any" value="${Math.abs(p.pid.Kc)}">
+                <label>Ti (s):</label><input type="number" id="cfgTi" step="any" value="${p.pid.Ti}">
+                <label>Td (s):</label><input type="number" id="cfgTd" step="any" value="${p.pid.Td}">
                 
                 <label>Control Action:</label>
                 <select id="cfgAction">
-                    <option value="DIRECT" ${p.action === 'DIRECT' ? 'selected' : ''}>Direct Acting</option>
-                    <option value="REVERSE" ${p.action === 'REVERSE' ? 'selected' : ''}>Reverse Acting</option>
+                    <option value="DIRECT" ${p.pid.action === 'DIRECT' ? 'selected' : ''}>Direct Acting</option>
+                    <option value="REVERSE" ${p.pid.action === 'REVERSE' ? 'selected' : ''}>Reverse Acting</option>
                 </select>
 
                 <label>Tipe Valve:</label>
                 <select id="cfgValveType">
-                    <option value="FC" ${p.valveType === 'FC' ? 'selected' : ''}>FC (Fail Closed)</option>
-                    <option value="FO" ${p.valveType === 'FO' ? 'selected' : ''}>FO (Fail Open)</option>
+                    <option value="FC" ${p.pid.valveType === 'FC' ? 'selected' : ''}>FC (Fail Closed)</option>
+                    <option value="FO" ${p.pid.valveType === 'FO' ? 'selected' : ''}>FO (Fail Open)</option>
                 </select>
 
                 <label>Linierisasi Valve:</label>
@@ -1189,7 +1310,7 @@
                 </select>
 
                 <label>Rangeability (R):</label>
-                <input type="number" id="cfgR" step="any" value="${p.r}" ${!isLinActive ? 'disabled' : ''}>
+                <input type="number" id="cfgR" step="any" value="${p.pid.R}" ${!isLinActive ? 'disabled' : ''}>
 
                 <label>EU Unit:</label><input type="text" id="cfgUnit" value="${state.eu_unit}">
                 <label>EU Min:</label><input type="number" id="cfgMin" step="any" value="${state.eu_min}">
@@ -1197,47 +1318,53 @@
             `;
 
             openModal(`Parameters Config (PID #${state.activePlantIndex + 1})`, html, () => {
-                p.kc = Math.abs(parseFloat(document.getElementById("cfgKc").value) || p.kc);
-                p.ti = parseFloat(document.getElementById("cfgTi").value) || p.ti;
-                p.td = parseFloat(document.getElementById("cfgTd").value) || p.td;
+                const kcEl = document.getElementById("cfgKc");
+                const tiEl = document.getElementById("cfgTi");
+                const tdEl = document.getElementById("cfgTd");
+                const actEl = document.getElementById("cfgAction");
+                const vTypeEl = document.getElementById("cfgValveType");
+                const linEl = document.getElementById("cfgLinear");
+                const rEl = document.getElementById("cfgR");
+                const unitEl = document.getElementById("cfgUnit");
+                const minEl = document.getElementById("cfgMin");
+                const maxEl = document.getElementById("cfgMax");
 
-                p.action = document.getElementById("cfgAction").value;
-                p.valveType = document.getElementById("cfgValveType").value;
+                if (kcEl) p.pid.Kc = Math.abs(safeNum(kcEl.value, p.pid.Kc));
+                if (tiEl) p.pid.Ti = safeNum(tiEl.value, p.pid.Ti);
+                if (tdEl) p.pid.Td = safeNum(tdEl.value, p.pid.Td);
 
-                p.enableLinearization = (document.getElementById("cfgLinear").value === "ON");
-                p.r = parseFloat(document.getElementById("cfgR").value) || p.r;
+                if (actEl) p.pid.action = actEl.value;
+                if (vTypeEl) p.pid.valveType = vTypeEl.value;
 
-                state.eu_unit = document.getElementById("cfgUnit").value || "%";
-                state.eu_min = parseFloat(document.getElementById("cfgMin").value) || 0.0;
+                if (linEl) p.pid.enableLinearization = (linEl.value === "ON");
+                if (rEl) p.pid.R = safeNum(rEl.value, p.pid.R);
+
+                if (unitEl) state.eu_unit = unitEl.value || "%";
+                if (minEl) state.eu_min = safeNum(minEl.value, 0.0);
                 
                 let oldEuMax = state.eu_max;
-                state.eu_max = parseFloat(document.getElementById("cfgMax").value) || 100.0;
+                if (maxEl) state.eu_max = safeNum(maxEl.value, 100.0);
+
+                sendPidConfigToServer(state.activePlantIndex, p.pid);
 
                 if (state.eu_max !== oldEuMax) {
                     sendEuMaxToServer(state.eu_max);
                 }
 
-                sendConfigToServer(state.activePlantIndex, {
-                    kc: p.kc,
-                    ti: p.ti,
-                    td: p.td,
-                    action: p.action,
-                    valveType: p.valveType,
-                    enableLinearization: p.enableLinearization,
-                    r: p.r,
-                    eu_unit: state.eu_unit,
-                    eu_min: state.eu_min,
-                    eu_max: state.eu_max
-                });
-
-                document.getElementById("lblPvUnit").innerText = state.eu_unit;
-                document.getElementById("lblSvUnit").innerText = state.eu_unit;
+                const lblPvUnit = document.getElementById("lblPvUnit");
+                const lblSvUnit = document.getElementById("lblSvUnit");
+                if (lblPvUnit) lblPvUnit.innerText = state.eu_unit;
+                if (lblSvUnit) lblSvUnit.innerText = state.eu_unit;
+                
+                updateUIReadouts();
             });
         }
 
         function acknowledgeAlarm() { state.alarmAck = true; }
 
         window.onload = () => {
+            populatePlantDropdown();
+            setupFaceplateEvents();
             initWebSocket();
             if (window.innerWidth <= 768) {
                 switchMobileTab('controller');
@@ -1247,7 +1374,7 @@
             }
             updateTrendConfig();
         };
-    </script>
+</script>
 
 </body>
 
